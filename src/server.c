@@ -12,7 +12,7 @@
 #include "../include/server.h"
 
 
-socket_t listen()
+socket_t listener()
 {
 
     struct addrinfo hints, * res, * p;
@@ -86,7 +86,59 @@ int8_t server_send(socket_t client_socket, message_t * p_msg)
 {
     uint32_t bytes_sent = 0;
     uint32_t bytes_left = p_msg->length + sizeof(message_t);
+    int8_t bytes_written = 0;
 
-    
+    while(bytes_sent < bytes_left)
+    {
+        if(-1 == (bytes_written = send(client_socket,
+        (byte_t*)p_msg + bytes_sent, bytes_left - bytes_sent, 0)))
+        {
+            fprintf(stderr, "send: %s\n", strerror(errno));
+            return -1;
+        }
+        bytes_sent += bytes_written;
+    }
+    return 0;
+}
 
+int8_t server_receive(socket_t client_socket, message_t * p_msg)
+{
+    uint32_t bytes_received = 0;
+    uint32_t bytes_left = sizeof(message_t);
+    int8_t bytes_read = 0;
+
+    while(bytes_received < bytes_left)
+    {
+        if(-1 == (bytes_read = recv(client_socket,
+        (byte_t*)p_msg + bytes_received, bytes_left - bytes_received, 0)))
+        {
+            fprintf(stderr, "recv: %s\n", strerror(errno));
+            return -1;
+        }
+        else if(0 == bytes_read)
+        {
+            fprintf(stderr, "Client disconnected\n");
+            return -1;
+        }
+        bytes_received += bytes_read;
+    }
+
+    bytes_left = p_msg->length;
+    while(bytes_received < (sizeof(message_t) + p_msg->length))
+    {
+        if(-1 == (bytes_read = recv(client_socket,
+        (byte_t*)p_msg + bytes_received, bytes_left - (bytes_received - sizeof(message_t)), 0)))
+        {
+            fprintf(stderr, "recv: %s\n", strerror(errno));
+            return -1;
+        }
+        else if(0 == bytes_read)
+        {
+            fprintf(stderr, "Client disconnected\n");
+            return -1;
+        }
+        bytes_received += bytes_read;
+    }
+
+    return 0;
 }

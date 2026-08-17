@@ -16,8 +16,8 @@ typedef struct __attribute__((packed)) message
     char data[];
 } message_t;
 
-socket_t listen();
+socket_t listener();
 int8_t server_send(socket_t client_socket, message_t * p_msg);
-
+int8_t server_receive(socket_t client_socket, message_t * p_msg);
 
 #endif

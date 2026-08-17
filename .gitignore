@@ -1,0 +1,35 @@
+# CMake build directories & output
+build/
+bin/
+lib/
+out/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CMakeLists.txt.user
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# Compiled binaries, objects, & libraries
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.elf
+
+# Editor / IDE (VS Code)
+.vscode/
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/settings.json
+.idea/
+*.swp
+*~
+
+# Operating System files
+.DS_Store
+Thumbs.db

@@ -1,13 +1,23 @@
 #include "../include/server.h"
 #include <sys/socket.h>
+#include <fcntl.h>
+#include <errno.h>
 #include <sys/types.h>
+#include <poll.h>
 #include <stdio.h>
 
 int main()
 {
     byte_t buffer[sizeof(message_t) + MAX_MESSAGE_LENGTH] = {0};
     message_t p_msg = {0};
-    socket_t listener_socket = listener();
+    socket_t listener_socket = tcp_listener(IP_ADDRESS, PORT, MAX_CLIENTS);
+
+    /*
+    if(-1 == fcntl(listener_socket, F_SETFL, O_NONBLOCK))
+    {
+        fprintf(stderr, "fcntl: %s\n", strerror(errno));
+        return -1;
+    } */
 
     if (-1 == listener_socket)
     {

@@ -14,7 +14,7 @@
 #include "../include/server.h"
 
 
-socket_t listener()
+socket_t tcp_listener(const char * ip_address, const char * port, uint8_t max_clients)
 {
 
     struct addrinfo hints, * res, * p;
@@ -27,7 +27,7 @@ socket_t listener()
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;
 
-    if((0 != (status = getaddrinfo(IP_ADDRESS, "4040", &hints, &res))))
+    if((0 != (status = getaddrinfo(ip_address, port, &hints, &res))))
     {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
         return -1;
@@ -58,12 +58,6 @@ socket_t listener()
         return -1;
     }
     
-    if(-1 == fcntl(server_socket, F_SETFL, O_NONBLOCK))
-    {
-        fprintf(stderr, "fcntl: %s\n", strerror(errno));
-        freeaddrinfo(res);
-        return -1;
-    }
 
     if(-1 == bind(server_socket, res->ai_addr, res->ai_addrlen))
     {
@@ -79,7 +73,7 @@ socket_t listener()
         return -1;
     }
 
-    if(-1 == listen(server_socket, MAX_CLIENTS))
+    if(-1 == listen(server_socket, max_clients))
     {
         fprintf(stderr, "listen: %s\n", strerror(errno));
         freeaddrinfo(res);

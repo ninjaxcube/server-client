@@ -2,9 +2,9 @@
 #define SERVER_H
 #include <stdint.h>
 
-#define MAX_CLIENTS 100
+#define MAX_CLIENTS 20
 #define MAX_MESSAGE_LENGTH 1000
-#define PORT 4040
+#define PORT "4040"
 #define IP_ADDRESS "127.0.0.1"
 
 typedef int8_t socket_t;
@@ -16,7 +16,7 @@ typedef struct __attribute__((packed)) message
     char data[];
 } message_t;
 
-socket_t listener();
+socket_t tcp_listener(const char * ip_address, const char * port, uint8_t max_clients);
 int8_t server_send(socket_t client_socket, message_t * p_msg);
 int8_t server_receive(socket_t client_socket, byte_t * p_buffer, message_t * p_message);
 

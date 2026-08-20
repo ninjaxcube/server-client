@@ -2,9 +2,11 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
 #include <netdb.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -55,6 +57,13 @@ socket_t listener()
         freeaddrinfo(res);
         return -1;
     }
+    
+    if(-1 == fcntl(server_socket, F_SETFL, O_NONBLOCK))
+    {
+        fprintf(stderr, "fcntl: %s\n", strerror(errno));
+        freeaddrinfo(res);
+        return -1;
+    }
 
     if(-1 == bind(server_socket, res->ai_addr, res->ai_addrlen))
     {
@@ -87,6 +96,9 @@ int8_t server_send(socket_t client_socket, message_t * p_msg)
     uint32_t bytes_sent = 0;
     uint32_t bytes_left = p_msg->length + sizeof(message_t);
     int8_t bytes_written = 0;
+    
+    p_msg->id = htonl(p_msg->id);
+    p_msg->length = htonl(p_msg->length);
 
     while(bytes_sent < bytes_left)
     {
@@ -101,7 +113,7 @@ int8_t server_send(socket_t client_socket, message_t * p_msg)
     return 0;
 }
 
-int8_t server_receive(socket_t client_socket, message_t * p_msg)
+int8_t server_receive(socket_t client_socket, byte_t * p_buffer, message_t * p_message)
 {
     uint32_t bytes_received = 0;
     uint32_t bytes_left = sizeof(message_t);
@@ -110,7 +122,30 @@ int8_t server_receive(socket_t client_socket, message_t * p_msg)
     while(bytes_received < bytes_left)
     {
         if(-1 == (bytes_read = recv(client_socket,
-        (byte_t*)p_msg + bytes_received, bytes_left - bytes_received, 0)))
+        p_buffer + bytes_received, bytes_left - bytes_received, 0)))
+        {
+            fprintf(stderr, "recv: %s\n", strerror(errno));
+            return -1;
+        }
+        else if(0 == bytes_read)
+        {
+            fprintf(stderr, "Client disconnected\n");
+            return -1;
+        }
+        bytes_received += bytes_read;
+    }
+    
+    memcpy(p_message, p_buffer, sizeof(message_t));
+    p_message->id = ntohl(p_message->id);
+    p_message->length = ntohl(p_message->length);
+
+    bytes_left = p_message->length;
+    bytes_received = 0;
+
+    while(bytes_received < bytes_left)
+    {
+        if(-1 == (bytes_read = recv(client_socket,
+        p_buffer + sizeof(message_t) + bytes_received, bytes_left - bytes_received, 0)))
         {
             fprintf(stderr, "recv: %s\n", strerror(errno));
             return -1;
@@ -123,22 +158,7 @@ int8_t server_receive(socket_t client_socket, message_t * p_msg)
         bytes_received += bytes_read;
     }
 
-    bytes_left = p_msg->length;
-    while(bytes_received < (sizeof(message_t) + p_msg->length))
-    {
-        if(-1 == (bytes_read = recv(client_socket,
-        (byte_t*)p_msg + bytes_received, bytes_left - (bytes_received - sizeof(message_t)), 0)))
-        {
-            fprintf(stderr, "recv: %s\n", strerror(errno));
-            return -1;
-        }
-        else if(0 == bytes_read)
-        {
-            fprintf(stderr, "Client disconnected\n");
-            return -1;
-        }
-        bytes_received += bytes_read;
-    }
+    memcpy(p_message->data, p_buffer + sizeof(message_t), p_message->length);
 
     return 0;
 }

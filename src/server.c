@@ -51,37 +51,32 @@ socket_t tcp_listener(const char * ip_address, const char * port, uint8_t max_cl
         printf("Server initialized on: %s\n", ipstr);
     }
 
+
     if(-1 == (server_socket = socket(res->ai_family, res->ai_socktype, res->ai_protocol)))
     {
         fprintf(stderr, "socket: %s\n", strerror(errno));
-        freeaddrinfo(res);
         return -1;
     }
-    
 
     if(-1 == bind(server_socket, res->ai_addr, res->ai_addrlen))
     {
         fprintf(stderr, "socket: %s\n", strerror(errno));
-        freeaddrinfo(res);
         return -1;
     }
+
+    freeaddrinfo(res);
 
     if(-1 == setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)))
     {
         fprintf(stderr, "setsockopt: %s\n", strerror(errno));
-        freeaddrinfo(res);
         return -1;
     }
 
     if(-1 == listen(server_socket, max_clients))
     {
         fprintf(stderr, "listen: %s\n", strerror(errno));
-        freeaddrinfo(res);
         return -1;
     }
-
-
-    freeaddrinfo(res);
     return server_socket;
 }
 
@@ -155,4 +150,79 @@ int8_t server_receive(socket_t client_socket, byte_t * p_buffer, message_t * p_m
     memcpy(p_message->data, p_buffer + sizeof(message_t), p_message->length);
 
     return 0;
+}
+
+int8_t init_poll_set(poll_set_t * p_poll_set, nfds_t max_fds)
+{
+    if(NULL == p_poll_set)
+    {
+        return -1;
+    }
+
+    p_poll_set->fds = (struct pollfd *)malloc(sizeof(struct pollfd) * max_fds);
+    if(NULL == p_poll_set->fds)
+    {
+        fprintf(stderr, "init_poll_set_malloc: %s\n", strerror(errno));
+        return -1;
+    }
+
+    p_poll_set->nfds = 0;
+
+    return 0;
+}
+
+int8_t destroy_poll_set(poll_set_t * p_poll_set)
+{
+    if(NULL == p_poll_set)
+    {
+        return -1;
+    }
+
+    if(NULL != p_poll_set->fds)
+    {
+        free(p_poll_set->fds);
+        p_poll_set->fds = NULL;
+    }
+
+    p_poll_set->nfds = 0;
+
+    return 0;
+}
+
+int8_t add_poll_fd(poll_set_t * p_poll_set, socket_t socket)
+{
+    if(NULL == p_poll_set || NULL == p_poll_set->fds)
+    {
+        return -1;
+    }
+
+    if(MAX_CLIENTS <= p_poll_set->nfds)
+    {
+        return -1;
+    }
+
+    p_poll_set->fds[p_poll_set->nfds].fd = socket;
+    p_poll_set->fds[p_poll_set->nfds].events = POLLIN;
+    p_poll_set->nfds++;
+
+    return 0;
+}
+
+int8_t remove_poll_fd(poll_set_t * p_poll_set, socket_t socket)
+{
+    if(NULL == p_poll_set || NULL == p_poll_set->fds)
+    {
+        return -1;
+    }
+
+    for(nfds_t i = 0; i < p_poll_set->nfds; i++)
+    {
+        if(p_poll_set->fds[i].fd == socket)
+        {
+            p_poll_set->fds[i] = p_poll_set->fds[p_poll_set->nfds - 1];
+            p_poll_set->nfds--;
+            return 0;
+        }
+    }
+    return -1;
 }

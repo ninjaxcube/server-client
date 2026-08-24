@@ -5,33 +5,142 @@
 #include <sys/types.h>
 #include <poll.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <signal.h>
+    
+volatile int8_t g_running = 1;
+
+inline static void close_all_sockets(poll_set_t * p_poll_set)
+{
+    if(NULL == p_poll_set || NULL == p_poll_set->fds)
+    {
+        return;
+    }
+
+    for(nfds_t i = 0; i < p_poll_set->nfds; i++)
+    {
+        close(p_poll_set->fds[i].fd);
+    }
+}
+
+void stop_server(int signum)
+{
+    (void)signum;
+    g_running = 0;
+}
 
 int main()
 {
     byte_t buffer[sizeof(message_t) + MAX_MESSAGE_LENGTH] = {0};
     message_t p_msg = {0};
     socket_t listener_socket = tcp_listener(IP_ADDRESS, PORT, MAX_CLIENTS);
+    poll_set_t poll_set = {0};
 
-    /*
+    if(-1 == listener_socket)
+    {
+        fprintf(stderr, "tcp_listener: %s\n", strerror(errno));
+        return -1;
+    }
+    
+    if(-1 == init_poll_set(&poll_set, MAX_CLIENTS))
+    {
+        fprintf(stderr, "init_poll_set: %s\n", strerror(errno));
+        return -1;
+    }
+
     if(-1 == fcntl(listener_socket, F_SETFL, O_NONBLOCK))
     {
         fprintf(stderr, "fcntl: %s\n", strerror(errno));
-        return -1;
-    } */
+        goto cleanup;
+    }
 
     if (-1 == listener_socket)
     {
         fprintf(stderr, "Failed to create listener socket\n");
-        return -1;
+        goto cleanup;
     }
 
-    socket_t client_fd = accept(listener_socket, NULL, NULL);
-    
-    while(1)
+    if(-1 == add_poll_fd(&poll_set, listener_socket))
     {
-        server_receive(client_fd, buffer, &p_msg);
-        printf("Received message with ID: %u, Length: %u, Data: %s\n"
-        ,p_msg.id, p_msg.length, p_msg.data);
+        fprintf(stderr, "failed to add listener socket to poll set..\n");
+        goto cleanup;
     }
-    return 0;
+
+    struct sigaction sa;
+    sa.sa_handler = stop_server;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0; 
+    sigaction(SIGINT, &sa, NULL);
+    
+    while(g_running)
+    {
+        struct pollfd listener_pfd = poll_set.fds[0];
+        int8_t socket_event = poll(poll_set.fds, poll_set.nfds, TIMEOUT);
+        if(-1 == socket_event)
+        {
+            fprintf(stderr, "poll: %s\n", strerror(errno));
+            goto cleanup;
+        }
+
+        else if (socket_event)
+        {
+            for (nfds_t i = 0; i < poll_set.nfds; i++)
+            {
+                struct pollfd current_pfd = poll_set.fds[i];
+                if (listener_pfd.revents & POLLIN)
+                {
+                    socket_t client_socket = accept(listener_socket, NULL, NULL);
+                    if(-1 == client_socket && (EAGAIN != errno || EWOULDBLOCK != errno))
+                    {
+                        fprintf(stderr, "accept: %s\n", strerror(errno));
+                        goto cleanup;
+                    }
+
+                    if(-1 == fcntl(client_socket, F_SETFL, O_NONBLOCK))
+                    {
+                        fprintf(stderr, "fcntl: %s\n", strerror(errno));
+                        goto cleanup;
+                    }
+
+                    printf("New client connected: %d\n", client_socket);
+
+                    if(-1 == add_poll_fd(&poll_set, client_socket))
+                    {
+                        fprintf(stderr, "add_poll_fd: %s\n", strerror(errno));
+                        goto cleanup;
+                    }
+                }
+                if((current_pfd.revents & POLLIN) &&
+                  (listener_pfd.fd != current_pfd.fd))
+                {
+                    socket_t client_socket = current_pfd.fd;
+                    if(-1 == server_receive(client_socket, buffer, &p_msg))
+                    {
+                        fprintf(stderr, "server_receive: %s\n", strerror(errno));
+                        remove_poll_fd(&poll_set, client_socket);
+                        close(client_socket);
+                        continue;
+                    }
+
+                    printf("Received message from client %d: ID=%u, Length=%u, Data=%s\n",
+                           client_socket, p_msg.id, p_msg.length, p_msg.data);
+
+                    if(-1 == server_send(client_socket, &p_msg))
+                    {
+                        fprintf(stderr, "server_send: %s\n", strerror(errno));
+                        remove_poll_fd(&poll_set, client_socket);
+                        close(client_socket);
+                        continue;
+                    }
+                }
+            }
+        }
+    }
+
+    cleanup:
+        close_all_sockets(&poll_set);
+        destroy_poll_set(&poll_set);
+        return 0;
 }

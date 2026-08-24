@@ -102,8 +102,9 @@ int8_t server_send(socket_t client_socket, message_t * p_msg)
     return 0;
 }
 
-int8_t server_receive(socket_t client_socket, byte_t * p_buffer, message_t * p_message)
+int8_t server_receive(socket_t client_socket, byte_t * p_buffer)
 {
+    message_t * message = (message_t*)p_buffer;
     uint32_t bytes_received = 0;
     uint32_t bytes_left = sizeof(message_t);
     int8_t bytes_read = 0;
@@ -121,16 +122,14 @@ int8_t server_receive(socket_t client_socket, byte_t * p_buffer, message_t * p_m
         else if(0 == bytes_read)
         {
             fprintf(stderr, "Client disconnected\n");
-            return -1;
+            return 0;
         }
         bytes_received += bytes_read;
     }
-    
-    memcpy(p_message, p_buffer, sizeof(message_t));
-    p_message->id = ntohl(p_message->id);
-    p_message->length = ntohl(p_message->length);
 
-    bytes_left = p_message->length;
+    message->id = ntohl(message->id);
+    message->length = ntohl(message->length);
+    bytes_left = message->length;
     bytes_received = 0;
 
     while(bytes_received < bytes_left)
@@ -149,7 +148,7 @@ int8_t server_receive(socket_t client_socket, byte_t * p_buffer, message_t * p_m
         bytes_received += bytes_read;
     }
 
-    memcpy(p_message->data, p_buffer + sizeof(message_t), p_message->length);
+    message->data[bytes_left] = '\0';
 
     return 0;
 }

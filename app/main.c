@@ -33,8 +33,8 @@ void stop_server(int signum)
 
 int main()
 {
-    byte_t buffer[sizeof(message_t) + MAX_MESSAGE_LENGTH] = {0};
-    message_t p_msg = {0};
+    byte_t buffer[sizeof(message_t) + MAX_MESSAGE_LENGTH + 1] = {0};
+    message_t * p_msg = (message_t*)buffer;
     socket_t listener_socket = tcp_listener(IP_ADDRESS, PORT, MAX_CLIENTS);
     poll_set_t poll_set = {0};
 
@@ -115,7 +115,7 @@ int main()
                     else
                     {
                         socket_t client_socket = poll_set.fds[i].fd;
-                        if(-1 == server_receive(client_socket, buffer, &p_msg))
+                        if(-1 == server_receive(client_socket, buffer))
                         {
                             fprintf(stderr, "server_receive: %s\n", strerror(errno));
                             remove_poll_fd(&poll_set, client_socket);
@@ -124,9 +124,9 @@ int main()
                         }
 
                         printf("Received message from client %d: ID=%u, Length=%u, Data=%s\n",
-                            client_socket, p_msg.id, p_msg.length, p_msg.data);
+                            client_socket, p_msg->id, p_msg->length, p_msg->data);
 
-                        if(-1 == server_send(client_socket, &p_msg))
+                        if(-1 == server_send(client_socket, p_msg))
                         {
                             fprintf(stderr, "server_send: %s\n", strerror(errno));
                             remove_poll_fd(&poll_set, client_socket);

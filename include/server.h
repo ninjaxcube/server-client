@@ -30,6 +30,6 @@ int8_t init_poll_set(poll_set_t * p_poll_set, nfds_t max_fds);
 int8_t add_poll_fd(poll_set_t * p_poll_set, socket_t socket);
 int8_t remove_poll_fd(poll_set_t * p_poll_set, socket_t socket);
 int8_t destroy_poll_set(poll_set_t * p_poll_set);
-int8_t server_receive(socket_t client_socket, byte_t * p_buffer, message_t * p_message);
+int8_t server_receive(socket_t client_socket, byte_t * p_buffer);
 
 #endif

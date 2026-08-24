@@ -108,6 +108,8 @@ int8_t server_receive(socket_t client_socket, byte_t * p_buffer, message_t * p_m
     uint32_t bytes_left = sizeof(message_t);
     int8_t bytes_read = 0;
 
+    memset(p_buffer, 0, sizeof(message_t) + MAX_MESSAGE_LENGTH);
+
     while(bytes_received < bytes_left)
     {
         if(-1 == (bytes_read = recv(client_socket,

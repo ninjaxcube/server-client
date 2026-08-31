@@ -3,6 +3,19 @@ import struct
 import sys
 import cmd
 
+def craft_message(id: int, data: str):
+    data_bytes = data.encode('utf-8')
+    data_length = len(data_bytes)
+    fmt = f'!II{data_length}s'
+    return struct.pack(fmt, id, data_length, data_bytes)
+
+def recieve_message(sock: socket.socket):
+    header_size = struct.calcsize('!II')
+    header = sock.recv(header_size)
+    print(f"header response: {header}")
+    
+
+
 class client(cmd.Cmd):
     intro = "Client to echo-server. Type '?' to list commands.\n"
     prompt = '(client) '
@@ -17,24 +30,20 @@ class client(cmd.Cmd):
         self.server_port = port
         self.server_socket = sock
 
-    def do_message(self, sock: socket.socket, id: int, data: str):
-        data_bytes = data.encode('utf-8')
-        length = len(data_bytes)
-        header = struct.pack('!II', id, length)
-        sock.sendall(header + data_bytes)
-
-    def do_disconnect(self, arg):
-        pass
-
-    def do_reconnect(self, arg):
-        try:
-            self.server_socket.connect((self.server_ip, self.server_port))
-        except ConnectionRefusedError:
-            print("Connection refused. Try using \"reconnect\" when the server is ready..")
+    def do_message(self, data):
+        msg = craft_message(1, data)
+        self.server_socket.send(msg)
+        recieve_message(self.server_socket)
 
     def do_exit(self, arg):
         print("Shutting down..")
         sys.exit(0)
+
+    def emptyline(self):
+        pass
+
+    def postloop(self):
+        self.server_socket.close()
 
 def __main__():
     if len(sys.argv) != 3:
@@ -50,7 +59,7 @@ def __main__():
         try:
             sock.connect((server_ip, server_port))
         except ConnectionRefusedError:
-            print("Connection refused. Try using \"reconnect\" when the server is ready..")
+            print("Connection refused. Try reconnecting when the server is ready..")
 
         client(server_ip, server_port, sock).cmdloop()
 

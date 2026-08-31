@@ -8,6 +8,7 @@
 #define PORT "4040"
 #define IP_ADDRESS "127.0.0.1"
 #define TIMEOUT 1000
+#define DISCONNECT 1
 
 typedef int8_t socket_t;
 typedef uint8_t byte_t;

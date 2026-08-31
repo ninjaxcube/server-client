@@ -85,7 +85,7 @@ int main()
         }
 
         int8_t socket_event = poll(poll_set.fds, poll_set.nfds, TIMEOUT);
-        if(0 != socket_event && EINTR != errno)
+        if(0 > socket_event && EINTR != errno)
         {
             fprintf(stderr, "poll: %s. %d\n", strerror(errno), errno);
             goto cleanup;
@@ -100,7 +100,7 @@ int main()
                     if(poll_set.fds[i].fd == poll_set.fds[0].fd)
                     {
                         socket_t client_socket = accept(poll_set.fds[0].fd, NULL, NULL);
-                        if(-1 == client_socket && (EAGAIN != errno || EWOULDBLOCK != errno))
+                        if(-1 == client_socket && EWOULDBLOCK != errno)
                         {
                             fprintf(stderr, "accept: %s\n", strerror(errno));
                             goto cleanup;
@@ -122,10 +122,18 @@ int main()
                     }
                     else
                     {
+                        int8_t status = 1;
                         socket_t client_socket = poll_set.fds[i].fd;
-                        if(-1 == server_receive(client_socket, buffer))
+                        if(0 != (status = server_receive(client_socket, buffer)))
                         {
-                            fprintf(stderr, "server_receive: %s\n", strerror(errno));
+                            if(-1 == status)
+                            {
+                                fprintf(stderr, "server_recieve, recv(): %d\n", errno);
+                            }
+                            if(DISCONNECT == status)
+                            {
+                                fprintf(stderr, "Client disconnected: %d\n", client_socket);
+                            }
                             remove_poll_fd(&poll_set, client_socket);
                             close(client_socket);
                             continue;

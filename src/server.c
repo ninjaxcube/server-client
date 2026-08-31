@@ -113,16 +113,17 @@ int8_t server_receive(socket_t client_socket, byte_t * p_buffer)
 
     while(bytes_received < bytes_left)
     {
-        if(-1 == (bytes_read = recv(client_socket,
-        p_buffer + bytes_received, bytes_left - bytes_received, 0)))
+        errno = 0;
+        bytes_read = recv(client_socket,
+        p_buffer + bytes_received, bytes_left - bytes_received, 0);
+        
+        if(0 >= bytes_read && EAGAIN != errno)
         {
-            fprintf(stderr, "recv: %s\n", strerror(errno));
-            return -1;
-        }
-        else if(0 == bytes_read)
-        {
-            fprintf(stderr, "Client disconnected\n");
-            return 0;
+            if(0 == bytes_read || ECONNRESET == errno)
+            {
+                return DISCONNECT;
+            }
+            else return -1;
         }
         bytes_received += bytes_read;
     }
@@ -134,16 +135,17 @@ int8_t server_receive(socket_t client_socket, byte_t * p_buffer)
 
     while(bytes_received < bytes_left)
     {
-        if(-1 == (bytes_read = recv(client_socket,
-        p_buffer + sizeof(message_t) + bytes_received, bytes_left - bytes_received, 0)))
+        errno = 0;
+        bytes_read = recv(client_socket,
+        p_buffer + sizeof(message_t) + bytes_received, bytes_left - bytes_received, 0);
+
+        if(0 >= bytes_read && EAGAIN != errno)
         {
-            fprintf(stderr, "recv: %s\n", strerror(errno));
-            return -1;
-        }
-        else if(0 == bytes_read)
-        {
-            fprintf(stderr, "Client disconnected\n");
-            return -1;
+            if(0 == bytes_read || ECONNRESET == errno)
+            {
+                return DISCONNECT;
+            }
+            else return -1;
         }
         bytes_received += bytes_read;
     }

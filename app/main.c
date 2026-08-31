@@ -38,6 +38,7 @@ int main()
     socket_t listener_socket = tcp_listener(IP_ADDRESS, PORT, MAX_CLIENTS);
     poll_set_t poll_set = {0};
 
+
     if(-1 == listener_socket)
     {
         fprintf(stderr, "tcp_listener: %s\n", strerror(errno));
@@ -68,18 +69,25 @@ int main()
         goto cleanup;
     }
 
+    printf("Server started.\nUse CTRL+C to exit.\n");
+
     struct sigaction sa;
     sa.sa_handler = stop_server;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0; 
     sigaction(SIGINT, &sa, NULL);
     
-    while(g_running)
+    while(1)
     {
-        int8_t socket_event = poll(poll_set.fds, poll_set.nfds, TIMEOUT);
-        if(-1 == socket_event)
+        if (0 == g_running)
         {
-            fprintf(stderr, "poll: %s\n", strerror(errno));
+            goto cleanup;
+        }
+
+        int8_t socket_event = poll(poll_set.fds, poll_set.nfds, TIMEOUT);
+        if(0 != socket_event && EINTR != errno)
+        {
+            fprintf(stderr, "poll: %s. %d\n", strerror(errno), errno);
             goto cleanup;
         }
 
@@ -140,6 +148,7 @@ int main()
     }
 
     cleanup:
+        printf("\nShutting down server...\n");
         close_all_sockets(&poll_set);
         destroy_poll_set(&poll_set);
         return 0;

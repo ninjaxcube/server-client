@@ -1,2 +1,2 @@
 # server-client
-Async echo server and client example. 
+Echo server and client example. Uses polling for multiple clients. 

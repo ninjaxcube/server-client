@@ -199,11 +199,6 @@ int8_t add_poll_fd(poll_set_t * p_poll_set, socket_t socket)
         return -1;
     }
 
-    if(MAX_CLIENTS <= p_poll_set->nfds)
-    {
-        return -1;
-    }
-
     p_poll_set->fds[p_poll_set->nfds].fd = socket;
     p_poll_set->fds[p_poll_set->nfds].events = POLLIN;
     p_poll_set->nfds++;

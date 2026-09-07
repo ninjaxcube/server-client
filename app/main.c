@@ -112,13 +112,16 @@ int main()
                             goto cleanup;
                         }
 
-                        printf("New client connected: %d\n", client_socket);
-
                         if(-1 == add_poll_fd(&poll_set, client_socket))
                         {
-                            fprintf(stderr, "add_poll_fd: %s\n", strerror(errno));
+                            fprintf(stderr, "poll: invalid args\n");
                             goto cleanup;
                         }
+
+
+                        printf("New client connected: %d\n", client_socket);
+
+                        break;
                     }
                     else
                     {

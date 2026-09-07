@@ -11,10 +11,10 @@ def craft_message(id: int, data: str):
 
 def recieve_message(sock: socket.socket):
     header_size = struct.calcsize('!II')
-    header = sock.recv(header_size)
-    print(f"header response: {header}")
-    
-
+    header = struct.unpack('!II', sock.recv(header_size))
+    data_length = header[1]
+    data = struct.unpack(f'!{data_length}s', sock.recv(data_length))[0].decode('utf-8')
+    return data
 
 class client(cmd.Cmd):
     intro = "Client to echo-server. Type '?' to list commands.\n"
@@ -33,7 +33,7 @@ class client(cmd.Cmd):
     def do_message(self, data):
         msg = craft_message(1, data)
         self.server_socket.send(msg)
-        recieve_message(self.server_socket)
+        print(f"Received message: {recieve_message(self.server_socket)}")
 
     def do_exit(self, arg):
         print("Shutting down..")
